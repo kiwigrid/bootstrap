@@ -292,6 +292,50 @@ module.exports = function(grunt) {
     if (dir) { grunt.config('dist', dir); }
   });
 
+  grunt.registerTask('build-separate', 'Create bootstrap build files as separate files', function() {
+      var _ = grunt.util._;
+      
+      // get all modules
+      grunt.file.expand({
+        filter: 'isDirectory', cwd: '.'
+      }, 'src/*').forEach(function(dir) {
+        findModule(dir.split('/')[1]);
+      });
+
+      var modules = grunt.config('modules');
+      grunt.config('srcModules', _.pluck(modules, 'moduleName'));
+      grunt.config('tplModules', _.pluck(modules, 'tplModules').filter(function(tpls) { return tpls.length > 0;} ));
+
+      var moduleFileMapping = _.clone(modules, true);
+      moduleFileMapping.forEach(function (module) {
+        delete module.docs;
+      });
+
+      var srcFiles = _.pluck(modules, 'srcFiles');
+      var tpljsFiles = _.pluck(modules, 'tpljsFiles');
+
+      srcFiles.forEach(function(files, index) {
+
+        var componentName = moduleFileMapping[index].name;
+
+        // configure concat
+        grunt.config('concat.dist_tpls_' + componentName, grunt.config('concat.dist_tpls'));
+        grunt.config('concat.dist_tpls_' + componentName + '.options.banner', '<%= meta.banner %>');
+        grunt.config('concat.dist_tpls_' + componentName + '.src', files.concat(tpljsFiles[index]));
+        grunt.config('concat.dist_tpls_' + componentName + '.dest', 'dist-separate/ui-bootstrap-' + componentName + '-<%= pkg.version %>.js');
+
+        // configure uglify
+        grunt.config('uglify.dist_tpls_' + componentName, grunt.config('uglify.dist_tpls'));
+        grunt.config('uglify.dist_tpls_' + componentName + '.src', 'dist-separate/ui-bootstrap-' + componentName + '-<%= pkg.version %>.js');
+        grunt.config('uglify.dist_tpls_' + componentName + '.dest', 'dist-separate/ui-bootstrap-' + componentName + '-<%= pkg.version %>.min.js');
+
+        // run concat and uglify tasks
+        grunt.task.run(['concat:dist_tpls_' + componentName, 'uglify:dist_tpls_' + componentName]);
+
+      });
+
+  });
+
   grunt.registerTask('build', 'Create bootstrap build files', function() {
     var _ = grunt.util._;
 
